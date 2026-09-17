@@ -1,11 +1,22 @@
-# 테스트 통과 시 이미지를 빌드하는 CI
+# PR은 테스트, main 푸시는 이미지까지 빌드
 name: CI
 
 on:
   push:
     branches:
       - main
+    # 문서/워크플로우만 바뀌면 건너뜀
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.github/**'
+  # PR에서도 테스트 실행
   pull_request:
+    # 문서/워크플로우만 바뀌면 건너뜀
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.github/**'
 
 jobs:
   hello:
@@ -15,6 +26,7 @@ jobs:
       - name: 인사 출력
         run: echo 'hello ci!'
 
+  # PR과 푸시 모두에서 실행
   test:
     runs-on: ubuntu-latest
     steps:
@@ -40,8 +52,8 @@ jobs:
   docker:
     # 테스트 통과 후에만 실행
     needs: test
-    # main 푸시일 때만 이미지 푸시
-    if: github.event_name == 'push'
+    # main 푸시일 때만 이미지 푸시(PR 제외)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
