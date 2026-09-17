@@ -1,4 +1,4 @@
-# main 푸시 시 테스트를 검증하는 CI
+# 테스트 통과 시 이미지를 빌드하는 CI
 name: CI
 
 on:
@@ -36,3 +36,53 @@ jobs:
       # gradle test 통과 여부 확인
       - name: 전체 테스트 실행
         run: ./gradlew test --no-daemon
+
+  docker:
+    # 테스트 통과 후에만 실행
+    needs: test
+    # main 푸시일 때만 이미지 푸시
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      # 소스 코드 내려받기
+      - name: 소스 체크아웃
+        uses: actions/checkout@v7
+
+      # arm64 에뮬레이션 준비
+      - name: QEMU 설정
+        uses: docker/setup-qemu-action@v4
+
+      # 멀티플랫폼 빌더 준비
+      - name: Buildx 설정
+        uses: docker/setup-buildx-action@v4
+
+      # 내장 토큰으로 ghcr 로그인
+      - name: GHCR 로그인
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # sha, latest 태그 생성
+      - name: 이미지 메타데이터 생성
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # amd64, arm64 크로스플랫폼 빌드/푸시
+      - name: 빌드 및 푸시
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

@@ -1,6 +1,6 @@
 FROM gradle:jdk17 AS builder
 WORKDIR /workspace
-COPY build.gradle setting.gradle ./
+COPY build.gradle settings.gradle ./
 RUN gradle dependencies --no-daemon || true
 COPY src src
 RUN gradle bootJar --no-daemon
